@@ -73,7 +73,7 @@ class CustomerAdmin(admin.ModelAdmin):
                 payload = "{\"from\":\"CTB\",\"to\":" + c + ",\"text\":\" CatchThatBus: Hi, We are missing you! Use code MISSYOU for 10"+"%"+" off your bus tickets purchase. Book today https://goo.gl/pS0Qui.\"}"
 
                 headers = {
-                        'authorization': "Basic Y2F0Y2h0aGF0YnVzOlExdzJlM3I0",
+                        'authorization': "",
                         'content-type': "application/json",
                         'accept': "application/json"
                         }
@@ -213,7 +213,7 @@ class MarketingCampaignAdmin(admin.ModelAdmin):
                         payload = "{\"from\":\"CTB\",\"to\":" + c + ",\"text\":\" CatchThatBus: Hi, We are missing you! Use code MISSYOU for 10"+"%"+" off your bus tickets purchase. Book today https://goo.gl/pS0Qui.\"}"
 
                         headers = {
-                                'authorization': "Basic Y2F0Y2h0aGF0YnVzOlExdzJlM3I0",
+                                'authorization': "",
                                 'content-type': "application/json",
                                 'accept': "application/json"
                                 }
