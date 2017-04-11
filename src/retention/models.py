@@ -8,6 +8,7 @@ from django.utils.html import format_html
 
 from django.forms import ModelForm
 from django import forms
+from time import sleep
 
 from django.shortcuts import render
 from django.core.mail import EmailMessage
@@ -17,7 +18,8 @@ from django.template.loader import render_to_string, get_template
 from django.core.mail import EmailMultiAlternatives 
 import os  
 from email.mime.image import MIMEImage 
-import re,csv
+import re,csv, json
+
 
 
 # Create your models here.
@@ -41,20 +43,23 @@ class Customer(models.Model):
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('id','name','email','phone','email_sent')
     
-    actions = ['send_email']
+    actions = ['send_email','test_send']
 
     def send_email(self, request, queryset):
         l= []
         for obj in queryset:
             if obj.email_sent<1:
+                # template = get_template('test.html')
                 template = get_template('missyou.html')
+
                 context = Context({'user': str(obj.name).title()})
                 content = template.render(context)
                 subject = "Hey "+str(obj.name).title()+", We are missing you !"
                 to = [obj.email]
                 from_email = 'CatchThatBus Team <noreply@catchthatbus.com>'
 
-                msg = EmailMultiAlternatives(subject, content, from_email, to)  
+
+                msg = EmailMessage(subject, content, from_email, to)  
                 msg.content_subtype = 'html'  # Main content is text/html  
                 msg.send()
 
@@ -80,7 +85,37 @@ class CustomerAdmin(admin.ModelAdmin):
                 
         queryset.update(email_sent=1)
         
+
+
+
+
+
+
+    def test_send(self, request, queryset):
+        l= []
+        for obj in queryset:
+            if obj.email_sent<1:
+                # template = get_template('test.html')
+                template = get_template('missyou.html')
+
+                context = Context({'user': str(obj.name).title()})
+                content = template.render(context)
+                subject = "Hey "+str(obj.name).title()+", We are missing you !"
+                to = [obj.email]
+                from_email = 'CatchThatBus Team <noreply@catchthatbus.com>'
+                # headers = 
+
+
+                msg = EmailMessage(subject, content, from_email, to, headers= {'Reply-To': 'ayush@catchthatbus.com','X-SMTPAPI': {"category":"MISS"}})  
+                msg.content_subtype = 'html'  # Main content is text/html  
+                msg.send()
+
+
+                
+                
+        # queryset.update(email_sent=1)
     send_email.short_description = "send email & sms"
+    test_send .short_description = "Send a test mail"
 
 
 
@@ -93,7 +128,7 @@ class CustomerAdmin(admin.ModelAdmin):
 class Client(models.Model):
     name = models.CharField(max_length=120, null=True, blank= True)
     email = models.EmailField()
-    phone = models.CharField(max_length=20)
+    phone = models.CharField(max_length=20,null=True, blank=True)
     email_sent = models.IntegerField()
     timestamp =models.DateTimeField(auto_now_add=True, auto_now=False)
     updated =models.DateTimeField(auto_now_add=False, auto_now=True)
@@ -112,8 +147,9 @@ class MarketingCampaign(models.Model):
     description = models.CharField(max_length=300)
     import_done = models.BooleanField()
     activated= models.BooleanField(default= False)
+    subject_line =models.CharField(max_length=300, null=True, blank=True)
     template= models.FileField(max_length=100 , null= True, blank=True)
-    import_file = models.FileField(max_length=100 , null= True, blank=True)
+    customer_data = models.FileField(max_length=100 , null= True, blank=True)
     smstext =models.CharField(max_length=300, default='')
 
     def __str__(self):
@@ -122,16 +158,17 @@ class MarketingCampaign(models.Model):
 
 
 
-
 class MarketingCampaignAdmin(admin.ModelAdmin):
-    list_display = ('id','name','description','import_done','activated','template','import_file','smstext')
+
+
+    list_display = ('id','name','description','import_done','activated','subject_line','template','customer_data','smstext')
     
     ## Importing data from local
     actions = ['import_data','send_email_sms']
     def import_data(self, request, queryset): 
         for obj in queryset:
             if obj.import_done==False:
-                reader = csv.reader(obj.import_file)
+                reader = csv.reader(obj.customer_data)
 
                 for x in reader:
                     q= Client(name= x[1], email = x[2], phone= x[3], email_sent=0, timestamp = timezone.now(), updated= timezone.now())
@@ -145,26 +182,29 @@ class MarketingCampaignAdmin(admin.ModelAdmin):
 
 
 
-    ### Activate 
+    ### Activating the 
     def send_email_sms(self, request, queryset):
-        l= []
+        
         for obj in queryset:
             if (obj.import_done==True and obj.activated==False):
                 for clnt in obj.client.all():
                     if clnt.email_sent<1:
 
-                        template = get_template(obj.template)
+                        template = get_template('missyou.html')
+
                         context = Context({'user': str(clnt.name).title()})
                         content = template.render(context)
                         subject = "Hey "+str(clnt.name).title()+", We are missing you !"
                         to = [clnt.email]
                         from_email = 'CatchThatBus Team <noreply@catchthatbus.com>'
 
-                        msg = EmailMultiAlternatives(subject, content, from_email, to)  
+
+                        msg = EmailMessage(subject, content, from_email, to)  
                         msg.content_subtype = 'html'  # Main content is text/html  
                         msg.send()
 
                         conn = httplib.HTTPConnection("api.infobip.com")
+
                         c=[]
                         c.append('"'+str(clnt.phone)+'"')
                         c= re.sub(r'[^\w]', '', c[0])
@@ -180,9 +220,8 @@ class MarketingCampaignAdmin(admin.ModelAdmin):
 
 
                         conn.request("POST", "/sms/1/text/single", payload, headers)
-                        clnt.update(email_sent=1)
 
-                queryset.update(activated=True)     
+                        queryset.update(activated=True)     
             
     send_email_sms.short_description = "send_result"
 
